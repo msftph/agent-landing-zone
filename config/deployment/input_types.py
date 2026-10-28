@@ -44,7 +44,7 @@ _GROUPS: dict[InputKind, str] = {
         containerAppsList workloadProfiles databaseContainersList storageAccountContainersList
         additionalAppConfigurationSettings storageAccountResourceAccessRules
     """,
-    "object": "deploymentTags publicIngress hostedAgent",
+    "object": "deploymentTags publicIngress hostedAgent containerAppIngressIpRestrictions",
     "string": """
         environmentName applicationResourceGroupName networkResourceGroupName
         location cosmosLocation searchServiceLocation speechServiceLocation

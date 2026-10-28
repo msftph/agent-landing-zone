@@ -107,6 +107,9 @@ param deploymentMode string = 'standalone'
 @description('Optional. When non-empty, opens each services public surface restricted to these CIDRs via native `ipRules` / `networkAcls.ipRules`. Empty (default) means no public allow-list. Applied to Storage, Key Vault, Cosmos DB, AI Search, Container Registry, and the AI Foundry / Cognitive Services accounts. App Configuration and Application Insights do not expose native ipRules and ignore this parameter (documented in docs/v2-migration.md). When `networkIsolation=true` AND `allowedIpRanges` is non-empty, services are switched to `publicNetworkAccess=Enabled` so the IP rules can take effect (defense-in-depth alongside private endpoints).')
 param allowedIpRanges string[] = []
 
+@description('Optional. Basic deployment (networkIsolation=false) Container App ingress IP restrictions keyed by `containerAppsList[].service_name`. Each value is an array of Azure Container Apps ingress `ipSecurityRestrictions` rules (for example: `{ "ui": [{ "name": "corp", "description": "Corp CIDR", "ipAddressRange": "203.0.113.0/24", "action": "Allow" }] }`). Rules apply only to apps with external ingress.')
+param containerAppIngressIpRestrictions object = {}
+
 @description('''When set to true, Private DNS Zones and DNS zone groups will NOT be created by this module.
 Use this option in environments where Azure Policy automatically manages Private DNS Zone linking for private endpoints
 (e.g., CAF Enterprise-Scale Platform Landing Zone). Creating DNS zones in those environments causes conflicts with
@@ -3004,6 +3007,9 @@ module containerApps 'br/public:avm/res/app/container-app:0.18.1' = [
       ingressTargetPort: int(app.?target_port ?? 8080)
       ingressTransport: 'auto'
       ingressAllowInsecure: false
+      ipSecurityRestrictions: (!_networkIsolation && app.external && contains(containerAppIngressIpRestrictions, app.service_name))
+        ? containerAppIngressIpRestrictions[app.service_name]
+        : []
 
       dapr: _containerAppDaprConfigs[index]
 
