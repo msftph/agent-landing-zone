@@ -23,9 +23,9 @@
     },
     {
       "name": "agent-app-orchestrator",
-      "repo": "https://github.com/Azure/agent-app-orchestrator.git",
-      "tag": "v7.2.0",
-      "commit": "72909db145ca41b954e18261d89e50318bed592a"
+      "repo": "https://github.com/msftph/agent-app-orchestrator.git",
+      "tag": "feature/ag-ui-durable-gateway",
+      "commit": "581a5915b47cf27ace6eaabd562704621cfea984"
     },
     {
       "name": "agent-app-ingestion",

@@ -99,7 +99,8 @@
     "deployAppConfig":                      { "value": "true" },
     "additionalAppConfigurationSettings":   { "value": [
       { "name": "ORCHESTRATION_HOST", "value": "${ORCHESTRATION_HOST=hosted}", "label": "agent-lz" },
-      { "name": "APPLICATION_MODE", "value": "${APPLICATION_MODE=conversational}", "label": "agent-lz" }
+      { "name": "APPLICATION_MODE", "value": "${APPLICATION_MODE=conversational}", "label": "agent-lz" },
+      { "name": "AG_UI_ENABLED", "value": "${AG_UI_ENABLED=false}", "label": "agent-lz" }
     ] },
     "appRuntimeConfigurationMode":          { "value": "${APP_RUNTIME_CONFIGURATION_MODE=appConfig}" },
     "deployAppInsights":                    { "value": "true" },

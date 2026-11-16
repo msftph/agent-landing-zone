@@ -33,9 +33,15 @@
       "name": "orchestrator",
       "kind": "containerapp",
       "path": "orchestrator",
-      "source": { "commit": "72909db145ca41b954e18261d89e50318bed592a" },
+      "source": { "commit": "581a5915b47cf27ace6eaabd562704621cfea984" },
       "profiles": ["model-user", "retrieval-reader"],
       "egress": [
+        {
+          "fqdn": "login.microsoftonline.com",
+          "protocol": "https",
+          "port": 443,
+          "purpose": "Validate trusted AG-UI workload access tokens using tenant signing keys."
+        },
         {
           "fqdn": "openaipublic.blob.core.windows.net",
           "protocol": "https",

@@ -52,6 +52,85 @@ def test_native_defaults_do_not_require_metadata_or_ingestion():
     assert not app.ingestion
 
 
+@pytest.mark.parametrize("mode", ["conversational", "workflow", "both"])
+def test_ag_ui_enables_only_internal_worker_ingress_and_keeps_native_dts(mode):
+    env = {**environment("container_apps", mode), "AG_UI_ENABLED": "true"}
+    source = json.loads((ROOT / "main.parameters.json").read_text())
+    parameters = compose_parameters(source, env)["parameters"]
+    worker = next(app for app in parameters["containerAppsList"]["value"]
+                  if app["service_name"] == "orchestrator")
+    assert not worker["external"] and not worker["disable_ingress"]
+    assert worker["target_port"] == 8080 and not worker["dapr"]["enabled"]
+    assert worker["min_replicas"] >= 1
+    assert parameters["deployDurableTaskScheduler"]["value"]
+    settings = {item["name"]: item["value"]
+                for item in parameters["additionalAppConfigurationSettings"]["value"]}
+    assert settings["AG_UI_ENABLED"] == "true"
+    assert native_deploy.runtime_settings(env)["AG_UI_ENABLED"] == "true"
+
+
+@pytest.mark.parametrize("overrides", [
+    {"AG_UI_ENABLED": "true"}, {"AG_UI_ENABLED": "not-a-boolean"},
+])
+def test_ag_ui_rejects_hosted_or_invalid_activation(overrides):
+    with pytest.raises(ValueError):
+        resolve_application({**environment(), **overrides})
+
+
+@pytest.mark.parametrize("mode", ["conversational", "workflow", "both"])
+def test_ag_ui_publication_is_mode_specific_owned_and_does_not_restore_retired_keys(mode, tmp_path):
+    from config.deployment.appconfig_intent import prepare_publication, resolve_intent
+    env = {**environment("container_apps", mode), "AG_UI_ENABLED": "true"}
+    frontend = {"fqdn": "ui.internal", "principalId": SUB, "uaiClientId": SUB, "uaiPrincipalId": SUB}
+    worker = {"fqdn": "worker.internal", "principalId": "worker"}
+    with patch.object(appconfig, "_container_app", side_effect=[frontend, worker]):
+        settings = appconfig.build_settings(env)
+    assert settings["AG_UI_AUTH_AUDIENCE"] == SUB
+    assert settings["AG_UI_ALLOWED_CALLER_IDS"] == SUB
+    assert settings["AG_UI_AGENT_ENDPOINT"] == (
+        "https://worker.internal/ag-ui" if mode in ("conversational", "both") else ""
+    )
+    assert settings["AG_UI_WORKFLOW_ENDPOINT"] == (
+        "https://worker.internal/ag-ui/workflow" if mode in ("workflow", "both") else ""
+    )
+    assert not set(settings).intersection(OBSOLETE_SELECTION_KEYS)
+    source = tmp_path / "parameters.json"
+    source.write_text((ROOT / "main.parameters.json").read_text())
+    publication = prepare_publication(resolve_intent(source, env), settings)
+    assert {item["name"] for item in publication} >= {
+        "AG_UI_ENABLED", "AG_UI_AGENT_ENDPOINT", "AG_UI_WORKFLOW_ENDPOINT",
+        "AG_UI_AUTH_AUDIENCE", "AG_UI_ALLOWED_CALLER_IDS",
+    }
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_ag_ui_publication_clears_disabled_settings_and_fails_without_ingress(enabled):
+    env = {**environment("container_apps"), "AG_UI_ENABLED": str(enabled).lower()}
+    with patch.object(appconfig, "_container_app", return_value={"fqdn": "", "principalId": ""}):
+        if enabled:
+            with pytest.raises(ValueError, match="internal orchestrator ingress"):
+                appconfig.build_settings(env)
+        else:
+            settings = appconfig.build_settings(env)
+            assert all(settings[key] == "" for key in (
+                "AG_UI_AGENT_ENDPOINT", "AG_UI_WORKFLOW_ENDPOINT",
+                "AG_UI_AUTH_AUDIENCE", "AG_UI_ALLOWED_CALLER_IDS",
+            ))
+
+
+def test_ag_ui_source_gate_rejects_the_previous_runtime(tmp_path):
+    (tmp_path / "src/native").mkdir(parents=True)
+    (tmp_path / "src/native/durable.py").write_text("# fixture\n")
+    env = {**environment("container_apps"), "AG_UI_ENABLED": "true"}
+    with pytest.raises(ValueError, match="gateway-capable"):
+        native_deploy.validate_component_source(tmp_path, "agent-app-orchestrator", env)
+    for relative in ("src/api/ag_ui.py", "src/api/ag_ui_auth.py", "src/native/ag_ui_durable.py"):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# fixture\n")
+    native_deploy.validate_component_source(tmp_path, "agent-app-orchestrator", env)
+
+
 def test_native_hosted_startup_matches_canonical_runtime_module_and_parameter_seed():
     command = hosted_startup_command(environment())
     assert command == "python -m native.hosted"
