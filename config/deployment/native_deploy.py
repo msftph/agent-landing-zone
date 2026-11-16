@@ -51,6 +51,11 @@ def validate_component_source(path: Path, component: str, environment: Mapping[s
         return
     if not entrypoint.is_file():
         raise ValueError("Manifest-pinned component lacks its native entrypoint. Coordinate compatible component pins before application activation.")
+    if component.endswith("-orchestrator") and resolve_application(environment).ag_ui:
+        if not all((path / required).is_file() for required in (
+            "src/api/ag_ui.py", "src/api/ag_ui_auth.py", "src/native/ag_ui_durable.py",
+        )):
+            raise ValueError("AG_UI_ENABLED requires a gateway-capable orchestrator source revision.")
 
 
 def runtime_settings(environment: Mapping[str, str]) -> dict[str, str]:

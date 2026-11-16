@@ -509,7 +509,9 @@ def _resolve_application_overrides(
                              if role not in {"CosmosDBBuiltInDataContributor", "KeyVaultSecretsUser"}]
         if bundled and service_name == "orchestrator":
             item["external"] = False
-            item["disable_ingress"] = True
+            item["disable_ingress"] = not app.ag_ui
+            if app.ag_ui:
+                item["target_port"] = 8080
             item["dapr"] = {"enabled": False}
     parameters["containerAppsList"] = apps
 

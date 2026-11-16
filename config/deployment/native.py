@@ -51,6 +51,7 @@ class NativeApplication:
     history: bool
     feedback: bool
     private_attachments: bool
+    ag_ui: bool = False
 
     @property
     def publications(self) -> tuple[str, ...]:
@@ -62,6 +63,7 @@ class NativeApplication:
             "ENABLE_CHAT_HISTORY": str(self.history).lower(),
             "ENABLE_USER_FEEDBACK": str(self.feedback).lower(),
             "ENABLE_PRIVATE_ATTACHMENTS": str(self.private_attachments).lower(),
+            "AG_UI_ENABLED": str(self.ag_ui).lower(),
         }
 
 
@@ -79,6 +81,9 @@ def resolve_application(environment: Mapping[str, str]) -> NativeApplication:
         raise ValueError("APPLICATION_MODE must be conversational, workflow, or both.")
     if host not in {"hosted", "container_apps"}:
         raise ValueError("ORCHESTRATION_HOST must be hosted or container_apps.")
+    ag_ui = boolean(environment, "AG_UI_ENABLED")
+    if ag_ui and host != "container_apps":
+        raise ValueError("AG_UI_ENABLED requires ORCHESTRATION_HOST=container_apps.")
     history = boolean(environment, "ENABLE_CHAT_HISTORY")
     feedback = boolean(environment, "ENABLE_USER_FEEDBACK")
     private_attachments = boolean(environment, "ENABLE_PRIVATE_ATTACHMENTS")
@@ -88,7 +93,7 @@ def resolve_application(environment: Mapping[str, str]) -> NativeApplication:
     return NativeApplication(
         mode, OrchestrationHost(host),
         boolean(environment, "DEPLOY_INGESTION_CONTAINER_APP"),
-        metadata, history, feedback, private_attachments,
+        metadata, history, feedback, private_attachments, ag_ui,
     )
 
 

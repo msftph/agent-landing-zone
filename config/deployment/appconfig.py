@@ -273,6 +273,29 @@ def build_settings(
             },
         )
 
+    gateway_settings = {
+        "AG_UI_AGENT_ENDPOINT": "", "AG_UI_WORKFLOW_ENDPOINT": "",
+        "AG_UI_AUTH_AUDIENCE": "", "AG_UI_ALLOWED_CALLER_IDS": "",
+    }
+    if native.ag_ui:
+        if not orchestrator["fqdn"]:
+            raise ValueError("AG_UI_ENABLED requires the provisioned internal orchestrator ingress endpoint.")
+        base = f"https://{orchestrator['fqdn']}"
+        admission = orchestrator_caller_settings({
+            "ORCHESTRATOR_AUTH_AUDIENCE": environment.get("AG_UI_AUTH_AUDIENCE", ""),
+            "ORCHESTRATOR_ALLOWED_CALLER_IDS": environment.get("AG_UI_ALLOWED_CALLER_IDS", ""),
+        }, frontend)
+        gateway_settings.update({
+            "AG_UI_AUTH_AUDIENCE": admission["ORCHESTRATOR_AUTH_AUDIENCE"],
+            "AG_UI_ALLOWED_CALLER_IDS": admission["ORCHESTRATOR_ALLOWED_CALLER_IDS"],
+        })
+        if not gateway_settings["AG_UI_AUTH_AUDIENCE"] or not gateway_settings["AG_UI_ALLOWED_CALLER_IDS"]:
+            raise ValueError("AG-UI requires an explicit trusted frontend identity and audience.")
+        if "conversational" in native.publications:
+            gateway_settings["AG_UI_AGENT_ENDPOINT"] = base + "/ag-ui"
+        if "workflow" in native.publications:
+            gateway_settings["AG_UI_WORKFLOW_ENDPOINT"] = base + "/ag-ui/workflow"
+
     mcp_settings = {mcp_config.DEPLOY_AGENT_APP_MCP: str(mcp_config.selected(environment)).lower()}
     if mcp_config.selected(environment):
         name = f"ca-{resource_token}-mcp"
@@ -294,6 +317,7 @@ def build_settings(
 
     return {
         **mcp_settings,
+        **gateway_settings,
         **native.settings(),
         **({
             "HOSTED_WORKFLOW_BASE_URL": environment.get("HOSTED_WORKFLOW_BASE_URL", "").strip(),

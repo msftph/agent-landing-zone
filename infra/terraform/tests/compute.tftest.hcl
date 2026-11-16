@@ -572,6 +572,62 @@ run "custom_app_definition_port_resources_dapr_and_roles" {
   }
 }
 
+run "ag_ui_worker_ingress_is_internal_and_preserves_durable_worker_shape" {
+  command = plan
+  variables {
+    containerAppsList = [{
+      service_name    = "orchestrator"
+      canonical_name  = "ORCHESTRATOR_APP"
+      external        = false
+      disable_ingress = false
+      target_port     = 8080
+      profile_name    = "Consumption"
+      min_replicas    = 1
+      max_replicas    = 1
+      cpu             = "0.5"
+      memory          = "1.0Gi"
+      dapr            = { enabled = false }
+      roles           = ["AcrPull", "AppConfigurationDataReader"]
+    }]
+  }
+  assert {
+    condition = (
+      length(azurerm_container_app.shell["orchestrator"].ingress) == 1 &&
+      !azurerm_container_app.shell["orchestrator"].ingress[0].external_enabled &&
+      azurerm_container_app.shell["orchestrator"].ingress[0].target_port == 8080 &&
+      azurerm_container_app.shell["orchestrator"].template[0].min_replicas == 1 &&
+      length(azurerm_container_app.shell["orchestrator"].dapr) == 0
+    )
+    error_message = "The AG-UI worker must retain internal-only port 8080, a running worker replica and no Dapr."
+  }
+}
+
+run "disabled_ag_ui_worker_has_no_ingress" {
+  command = plan
+  variables {
+    containerAppsList = [{
+      service_name    = "orchestrator"
+      canonical_name  = "ORCHESTRATOR_APP"
+      external        = false
+      disable_ingress = true
+      profile_name    = "Consumption"
+      min_replicas    = 1
+      max_replicas    = 1
+      cpu             = "0.5"
+      memory          = "1.0Gi"
+      dapr            = { enabled = false }
+      roles           = ["AcrPull", "AppConfigurationDataReader"]
+    }]
+  }
+  assert {
+    condition = (
+      length(azurerm_container_app.shell["orchestrator"].ingress) == 0 &&
+      azurerm_container_app.shell["orchestrator"].template[0].min_replicas == 1
+    )
+    error_message = "Disabling AG-UI must remove HTTP ingress without stopping the durable worker."
+  }
+}
+
 run "invalid_external_registry_binding_rejected" {
   command = plan
   variables {
