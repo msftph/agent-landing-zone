@@ -148,6 +148,10 @@ The full runtime pytest suite passed 1,278 tests with one existing skip.
 Git Bash was selected for the existing cross-platform shell tests.
 Ruff and mypy passed for all 15 native/gateway source files; installed runtime
 and development dependencies passed uv pip check.
+The aggregated runtime quality check passed lint, architecture, exceptions,
+and policy. Its isolated typing subprocess exceeded the existing 300-second
+timeout, so the aggregate gate is not fully green despite the targeted typing
+pass. No checker timeout or quality rule was weakened.
 
 The shared platform selection/publication/preparation/interface tests passed
 206 cases. With the contract-pinned Bicep 0.42.1 compiler available, the native
